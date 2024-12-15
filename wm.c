@@ -28,33 +28,8 @@ struct X11 x11;
 static int ccx = 2;
 
 bool
-x11_setup(struct X11 *x11)
+load_colors(struct X11 *x11)
 {
-    x11->dpy = XOpenDisplay(NULL);
-    if (x11->dpy == NULL)
-    {
-        fprintf(stderr, "Cannot open display\n");
-        return false;
-    }
-
-    x11->screen = DefaultScreen(x11->dpy);
-    x11->root = XDefaultRootWindow(x11->dpy);
-
-    x11->sw = DisplayWidth(x11->dpy, x11->screen);
-    x11->sh = DisplayHeight(x11->dpy, x11->screen);
-
-    // little trick lifted from dwm
-    unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
-
-    for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
-        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Return), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
-        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_p), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
-        XGrabKey(x11->dpy, XStringToKeysym("F1"), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
-    }
-
-    Cursor cursor = XCreateFontCursor(x11->dpy, XC_left_ptr);
-    XDefineCursor(x11->dpy, x11->root, cursor);
-
     Colormap cmap = DefaultColormap(x11->dpy, x11->screen);
 
     // init XftColor for use with text
@@ -85,9 +60,44 @@ x11_setup(struct X11 *x11)
         return false;
     }
 
+    return true;
+}
+
+bool
+x11_setup(struct X11 *x11)
+{
+    x11->dpy = XOpenDisplay(NULL);
+    if (x11->dpy == NULL)
+    {
+        fprintf(stderr, "Cannot open display\n");
+        return false;
+    }
+
+    x11->screen = DefaultScreen(x11->dpy);
+    x11->root = XDefaultRootWindow(x11->dpy);
+
+    x11->sw = DisplayWidth(x11->dpy, x11->screen);
+    x11->sh = DisplayHeight(x11->dpy, x11->screen);
+
+    // little trick lifted from dwm
+    unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
+
+    for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
+        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Return), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_p), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+        XGrabKey(x11->dpy, XStringToKeysym("F1"), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+    }
+
+    Cursor cursor = XCreateFontCursor(x11->dpy, XC_left_ptr);
+    XDefineCursor(x11->dpy, x11->root, cursor);
+
+    if (!load_colors(x11))
+        return false;
+
     // init draw for xft drawing
     x11->fdraw = XftDrawCreate(x11->dpy, x11->root,
-                               DefaultVisual(x11->dpy, x11->screen), cmap);
+                               DefaultVisual(x11->dpy, x11->screen),
+                               DefaultColormap(x11->dpy, x11->screen));
     if (x11->fdraw == NULL)
     {
         fprintf(stderr, "Could not create xft draw \n");
