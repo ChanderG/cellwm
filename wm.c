@@ -83,13 +83,12 @@ x11_setup(struct X11 *x11)
     // little trick lifted from dwm
     unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
+    KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down };
+
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
-        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Return), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
-        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_p), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
-        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Left), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
-        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Right), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
-        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Up), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
-        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Down), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+        for (unsigned int k = 0; k < LENGTH(syms); k++)
+            XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, syms[k]), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+
         XGrabKey(x11->dpy, XStringToKeysym("F1"), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
     }
 
