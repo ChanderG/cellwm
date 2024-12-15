@@ -18,10 +18,14 @@ struct X11
     int sw, sh;
 
     XftDraw* fdraw;
-    XftColor fcol_fg, fcol_bg;
+    XftColor fcol_fg, fcol_bg, fcol_sel;
+    int font_width, font_height;
+    XftFont* font;
 };
 
 struct X11 x11;
+
+static int ccx = 2;
 
 bool
 x11_setup(struct X11 *x11)
@@ -72,6 +76,15 @@ x11_setup(struct X11 *x11)
         return false;
     }
 
+    if (XftColorAllocName(x11->dpy,
+                           DefaultVisual(x11->dpy, x11->screen),
+                           cmap,
+                          "grey", &x11->fcol_sel) == False)
+    {
+        fprintf(stderr, "Could not load font sel color\n");
+        return false;
+    }
+
     // init draw for xft drawing
     x11->fdraw = XftDrawCreate(x11->dpy, x11->root,
                                DefaultVisual(x11->dpy, x11->screen), cmap);
@@ -81,6 +94,18 @@ x11_setup(struct X11 *x11)
         return false;
     }
 
+    x11->font = XftFontOpenName(x11->dpy, x11->screen,
+                                "Monospace:size=22");
+    if (x11->font == NULL)
+    {
+        fprintf(stderr, "Could not load font\n");
+        return false;
+    }
+    x11->font_height = x11->font->height;
+    XGlyphInfo ext;
+    XftTextExtents8(x11->dpy, x11->font, (FcChar8 *)"m", 1, &ext);
+    x11->font_width = ext.width + 2;
+
     XSync(x11->dpy, False);
     return true;
 }
@@ -88,7 +113,23 @@ x11_setup(struct X11 *x11)
 void
 draw_bar(struct X11 *x11)
 {
-    XftDrawRect(x11->fdraw, &x11->fcol_bg, 0, 0, x11->sw, 20);
+    int cellh = 22 + 8;
+    XftDrawRect(x11->fdraw, &x11->fcol_bg, 0, 0, x11->sw, cellh);
+
+    char cell;
+    int xoff;
+    for (int i = 1; i < 10; i++) {
+        cell = '0' + i;
+        xoff = 8 + (i-1) * (x11->font_width + 8);
+
+        if (i == ccx)
+            XftDrawRect(x11->fdraw, &x11->fcol_sel, xoff-4, 0, 8+x11->font_width, cellh);
+
+        XftDrawString8(x11->fdraw, &x11->fcol_fg, x11->font,
+                    xoff,
+                    x11->font->ascent,
+                    (XftChar8 *)&cell, 1);
+    }
 }
 
 void
