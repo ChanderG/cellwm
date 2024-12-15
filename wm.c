@@ -85,6 +85,8 @@ x11_setup(struct X11 *x11)
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
         XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Return), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
         XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_p), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Left), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Right), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
         XGrabKey(x11->dpy, XStringToKeysym("F1"), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
     }
 
@@ -162,6 +164,18 @@ handleKeyPress(XKeyEvent *ev)
             break;
         case XK_p:
             spawn("dmenu_run");
+            break;
+        case XK_Left:
+            ccx -= 1;
+            if (ccx == 0)
+              ccx = 1;
+            draw_bar(&x11);
+            break;
+        case XK_Right:
+            ccx += 1;
+            if (ccx == 10)
+              ccx = 9;
+            draw_bar(&x11);
             break;
         case XK_F1:
             break;
