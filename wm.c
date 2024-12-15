@@ -26,6 +26,7 @@ struct X11
 struct X11 x11;
 
 static int ccx = 2;
+static int ccy = 1;
 
 bool
 load_colors(struct X11 *x11)
@@ -87,6 +88,8 @@ x11_setup(struct X11 *x11)
         XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_p), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
         XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Left), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
         XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Right), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Up), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Down), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
         XGrabKey(x11->dpy, XStringToKeysym("F1"), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
     }
 
@@ -125,14 +128,23 @@ x11_setup(struct X11 *x11)
 void
 draw_bar(struct X11 *x11)
 {
-    int cellh = 22 + 8;
+    int cellh = 22 + 10;
     XftDrawRect(x11->fdraw, &x11->fcol_bg, 0, 0, x11->sw, cellh);
 
     char cell;
-    int xoff;
+    int xoff = 0;
+
+    char row[3] = "[0]";
+    row[1] = '0' + ccy;
+    XftDrawString8(x11->fdraw, &x11->fcol_fg, x11->font,
+                xoff,
+                x11->font->ascent,
+                (XftChar8 *)&row, 3);
+    xoff += (x11->font_width*2);
+
     for (int i = 1; i < 10; i++) {
         cell = '0' + i;
-        xoff = 8 + (i-1) * (x11->font_width + 8);
+        xoff += (x11->font_width + 8);
 
         if (i == ccx)
             XftDrawRect(x11->fdraw, &x11->fcol_sel, xoff-4, 0, 8+x11->font_width, cellh);
@@ -152,6 +164,17 @@ spawn(const char *cmd)
     }
 }
 
+int
+clip(int n)
+{
+  if (n < 1)
+    return 1;
+  else if (n > 9)
+    return 9;
+  else
+    return n;
+}
+
 void
 handleKeyPress(XKeyEvent *ev)
 {
@@ -166,15 +189,19 @@ handleKeyPress(XKeyEvent *ev)
             spawn("dmenu_run");
             break;
         case XK_Left:
-            ccx -= 1;
-            if (ccx == 0)
-              ccx = 1;
+            ccx = clip(ccx-1);
             draw_bar(&x11);
             break;
         case XK_Right:
-            ccx += 1;
-            if (ccx == 10)
-              ccx = 9;
+            ccx = clip(ccx+1);
+            draw_bar(&x11);
+            break;
+        case XK_Up:
+            ccy = clip(ccy-1);
+            draw_bar(&x11);
+            break;
+        case XK_Down:
+            ccy = clip(ccy+1);
             draw_bar(&x11);
             break;
         case XK_F1:
