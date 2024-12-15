@@ -5,13 +5,20 @@
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
 #include <X11/cursorfont.h>
+#include <X11/Xft/Xft.h>
 
 #define LENGTH(X) (sizeof (X) / sizeof (X)[0])
 
 struct X11
 {
     Display *dpy;
+    int screen;
     Window root;
+
+    int sw, sh;
+
+    XftDraw* fdraw;
+    XftColor fcol_fg, fcol_bg;
 };
 
 struct X11 x11;
@@ -26,7 +33,11 @@ x11_setup(struct X11 *x11)
         return false;
     }
 
+    x11->screen = DefaultScreen(x11->dpy);
     x11->root = XDefaultRootWindow(x11->dpy);
+
+    x11->sw = DisplayWidth(x11->dpy, x11->screen);
+    x11->sh = DisplayHeight(x11->dpy, x11->screen);
 
     // little trick lifted from dwm
     unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
@@ -40,8 +51,44 @@ x11_setup(struct X11 *x11)
     Cursor cursor = XCreateFontCursor(x11->dpy, XC_left_ptr);
     XDefineCursor(x11->dpy, x11->root, cursor);
 
+    Colormap cmap = DefaultColormap(x11->dpy, x11->screen);
+
+    // init XftColor for use with text
+    if (XftColorAllocName(x11->dpy,
+                           DefaultVisual(x11->dpy, x11->screen),
+                           cmap,
+                          "black", &x11->fcol_fg) == False)
+    {
+        fprintf(stderr, "Could not load font fg color\n");
+        return false;
+    }
+
+    if (XftColorAllocName(x11->dpy,
+                           DefaultVisual(x11->dpy, x11->screen),
+                           cmap,
+                          "white", &x11->fcol_bg) == False)
+    {
+        fprintf(stderr, "Could not load font bg color\n");
+        return false;
+    }
+
+    // init draw for xft drawing
+    x11->fdraw = XftDrawCreate(x11->dpy, x11->root,
+                               DefaultVisual(x11->dpy, x11->screen), cmap);
+    if (x11->fdraw == NULL)
+    {
+        fprintf(stderr, "Could not create xft draw \n");
+        return false;
+    }
+
     XSync(x11->dpy, False);
     return true;
+}
+
+void
+draw_bar(struct X11 *x11)
+{
+    XftDrawRect(x11->fdraw, &x11->fcol_bg, 0, 0, x11->sw, 20);
 }
 
 void
@@ -73,6 +120,8 @@ handleKeyPress(XKeyEvent *ev)
 int main() {
     if (!x11_setup(&x11))
         return 1;
+
+    draw_bar(&x11);
 
     XEvent ev;
     while(true) {
