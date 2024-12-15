@@ -28,6 +28,26 @@ struct X11 x11;
 static int ccx = 2;
 static int ccy = 1;
 
+typedef struct Client Client;
+struct Client
+{
+    int cx, cy;
+    Window win;
+
+    Client *next;
+};
+
+Client* clients;
+
+typedef struct Cell Cell;
+struct Cell
+{
+    Client* primary;
+    Client* secondary;
+};
+
+Cell cells[9][9];
+
 bool
 load_colors(struct X11 *x11)
 {
@@ -91,6 +111,8 @@ x11_setup(struct X11 *x11)
 
         XGrabKey(x11->dpy, XStringToKeysym("F1"), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
     }
+
+    XSelectInput(x11->dpy, x11->root, SubstructureRedirectMask | SubstructureNotifyMask);
 
     Cursor cursor = XCreateFontCursor(x11->dpy, XC_left_ptr);
     XDefineCursor(x11->dpy, x11->root, cursor);
@@ -204,13 +226,74 @@ handleKeyPress(XKeyEvent *ev)
             draw_bar(&x11);
             break;
         case XK_F1:
+            spawn("xterm");
             break;
     }
 }
 
+void
+handleConfigureRequest(XConfigureRequestEvent *ev)
+{
+    XWindowChanges changes;
+
+    // copy in changes as-is from the event
+    // trying to make changes here does not work at all
+    changes.x = ev->x;
+    changes.y = ev->y;
+    changes.width = ev->width;
+    changes.height = ev->height;
+    changes.border_width = ev->border_width;
+    changes.sibling = ev->above;
+    changes.stack_mode = ev->detail;
+
+    XConfigureWindow(x11.dpy, ev->window, ev->value_mask, &changes);
+
+    // resize to our desired shape
+    int offy = 22 + 10;
+    XMoveResizeWindow(x11.dpy, ev->window, 0, offy,
+                      x11.sw, x11.sh - offy);
+}
+
+void
+handleMapRequest(XMapRequestEvent *ev)
+{
+    // window may already exist
+    bool found = false;
+    Client *c;
+    for (c = clients; c; c = c->next)
+        if (c->win == ev->window) {
+            found = true;
+            break;
+        }
+
+    if (!found) {
+        // window does not already exist
+        c = (Client *)malloc(sizeof(Client));
+        c->win = ev->window;
+
+        // update global store
+        c->next = clients;
+        clients = c;
+
+        // TODO: need to check if current cell is free
+        c->cx = ccx;
+        c->cy = ccy;
+
+        // TODO: find the right slot to put it in
+        cells[ccy][ccx].primary = c;
+    }
+
+    XRaiseWindow(x11.dpy, c->win);
+    XMapWindow(x11.dpy, c->win);
+}
+
 int main() {
+    XInitThreads();
+
     if (!x11_setup(&x11))
         return 1;
+
+    clients = NULL;
 
     draw_bar(&x11);
 
@@ -221,6 +304,12 @@ int main() {
       switch(ev.type) {
         case KeyPress:
             handleKeyPress(&ev.xkey);
+            break;
+        case ConfigureRequest:
+            handleConfigureRequest(&ev.xconfigurerequest);
+            break;
+        case MapRequest:
+            handleMapRequest(&ev.xmaprequest);
             break;
       }
     }
