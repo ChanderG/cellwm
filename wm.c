@@ -197,10 +197,31 @@ clip(int n)
 }
 
 void
+update_view(int prevy, int prevx){
+    if ((prevx == ccx) && (prevy == ccy))
+        return;
+
+    // unmap the windows show previously
+    // TODO: deal with layout and secondary win here
+    Cell* prev = &cells[prevy][prevx];
+    if (prev->primary != NULL)
+        XUnmapWindow(x11.dpy, prev->primary->win);
+
+    // map the current cell's window(s) here
+    // TODO: deal with secondary and layout here
+    Cell* curr = &cells[ccy][ccx];
+    if (curr->primary != NULL)
+        XMapWindow(x11.dpy, curr->primary->win);
+
+    draw_bar(&x11);
+}
+
+void
 handleKeyPress(XKeyEvent *ev)
 {
     KeySym ksym = XkbKeycodeToKeysym(x11.dpy, ev->keycode, 0, 0);
 
+    int prevx, prevy;
     switch (ksym)
     {
         case XK_Return:
@@ -210,20 +231,24 @@ handleKeyPress(XKeyEvent *ev)
             spawn("dmenu_run");
             break;
         case XK_Left:
+            prevx = ccx;
             ccx = clip(ccx-1);
-            draw_bar(&x11);
+            update_view(ccy, prevx);
             break;
         case XK_Right:
+            prevx = ccx;
             ccx = clip(ccx+1);
-            draw_bar(&x11);
+            update_view(ccy, prevx);
             break;
         case XK_Up:
+            prevy = ccy;
             ccy = clip(ccy-1);
-            draw_bar(&x11);
+            update_view(prevy, ccx);
             break;
         case XK_Down:
+            prevy = ccy;
             ccy = clip(ccy+1);
-            draw_bar(&x11);
+            update_view(prevy, ccx);
             break;
         case XK_F1:
             spawn("xterm");
