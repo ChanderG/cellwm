@@ -33,6 +33,7 @@ x11_setup(struct X11 *x11)
 
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
         XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_Return), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+        XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, XK_p), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
         XGrabKey(x11->dpy, XStringToKeysym("F1"), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
     }
 
@@ -44,17 +45,25 @@ x11_setup(struct X11 *x11)
 }
 
 void
+spawn(const char *cmd)
+{
+    if (!fork()) {
+        execlp(cmd, cmd, (char*) NULL);
+    }
+}
+
+void
 handleKeyPress(XKeyEvent *ev)
 {
-    printf("Obtained some key press!\n");
     KeySym ksym = XkbKeycodeToKeysym(x11.dpy, ev->keycode, 0, 0);
 
     switch (ksym)
     {
         case XK_Return:
-            if (!fork()) {
-                execlp("vex", "vex", (char*) NULL);
-            }
+            spawn("vex");
+            break;
+        case XK_p:
+            spawn("dmenu_run");
             break;
         case XK_F1:
             break;
