@@ -48,6 +48,24 @@ struct Cell
 
 Cell cells[9][9];
 
+void
+delete_client(Client* clients, Client* cl) {
+    // first entry
+    if (clients == cl) {
+        clients = cl->next;
+    } else {
+        Client *p = clients;
+        for (Client *c = clients->next; c; c = c->next) {
+            if (c == cl) {
+                p->next = c->next;
+                break;
+            }
+            p = c;
+        }
+    }
+    free(cl);
+}
+
 bool
 load_colors(struct X11 *x11)
 {
@@ -103,7 +121,7 @@ x11_setup(struct X11 *x11)
     // little trick lifted from dwm
     unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
-    KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down };
+    KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down, XK_k };
 
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
         for (unsigned int k = 0; k < LENGTH(syms); k++)
@@ -217,6 +235,21 @@ update_view(int prevy, int prevx){
 }
 
 void
+kill_client(){
+    Cell* curr = &cells[ccy][ccx];
+    // TODO: lookup the focused client in a better way than this
+    if (curr->primary != NULL) {
+        // TODO: send a clean WM_DELETE_WINDOW event
+        XKillClient(x11.dpy, curr->primary->win);
+
+        // remove this from the list of clients
+        delete_client(clients, curr->primary);
+
+        curr->primary = NULL;
+    }
+}
+
+void
 handleKeyPress(XKeyEvent *ev)
 {
     KeySym ksym = XkbKeycodeToKeysym(x11.dpy, ev->keycode, 0, 0);
@@ -249,6 +282,9 @@ handleKeyPress(XKeyEvent *ev)
             prevy = ccy;
             ccy = clip(ccy+1);
             update_view(prevy, ccx);
+            break;
+        case XK_k:
+            kill_client();
             break;
         case XK_F1:
             spawn("xterm");
@@ -312,6 +348,33 @@ handleMapRequest(XMapRequestEvent *ev)
     XMapWindow(x11.dpy, c->win);
 }
 
+void
+handleDestroyNotify(XDestroyWindowEvent *ev)
+{
+    // find the client
+    Client *c;
+    for(c = clients;c;c = c->next) {
+      if (c->win == ev->window)
+          break;
+    }
+
+    if (c == NULL) {
+        // client with window not found
+        // for eg, if the wm was the one that killed the client
+        // a destroy notify will still be raised for the window
+        return;
+    }
+
+    // undo the mapping in the cells structure
+    // TODO: handle secondary windows
+    if (c == cells[c->cy][c->cx].primary)
+        cells[c->cy][c->cx].primary = NULL;
+
+    delete_client(clients, c);
+
+    draw_bar(&x11);
+}
+
 int main() {
     XInitThreads();
 
@@ -335,6 +398,9 @@ int main() {
             break;
         case MapRequest:
             handleMapRequest(&ev.xmaprequest);
+            break;
+        case DestroyNotify:
+            handleDestroyNotify(&ev.xdestroywindow);
             break;
       }
     }
