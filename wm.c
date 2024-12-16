@@ -13,9 +13,10 @@ enum ColorType {
     Black,
     White,
     Gray,
+    LightBlue,
     NumColors
 };
-static char* colors[NumColors] = {"black", "white", "gray"};
+static char* colors[NumColors] = {"black", "white", "gray", "lightblue"};
 
 struct X11
 {
@@ -177,6 +178,8 @@ draw_bar(struct X11 *x11)
         xoff += (x11->font_width + 8);
 
         if (i == ccx)
+            XftDrawRect(x11->fdraw, &x11->colors[LightBlue], xoff-4, 0, 8+x11->font_width, cellh);
+        else if (cells[ccy][i].primary != NULL)
             XftDrawRect(x11->fdraw, &x11->colors[Gray], xoff-4, 0, 8+x11->font_width, cellh);
 
         XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
