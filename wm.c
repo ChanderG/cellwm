@@ -9,6 +9,14 @@
 
 #define LENGTH(X) (sizeof (X) / sizeof (X)[0])
 
+enum ColorType {
+    Black,
+    White,
+    Gray,
+    NumColors
+};
+static char* colors[NumColors] = {"black", "white", "gray"};
+
 struct X11
 {
     Display *dpy;
@@ -18,7 +26,7 @@ struct X11
     int sw, sh;
 
     XftDraw* fdraw;
-    XftColor fcol_fg, fcol_bg, fcol_sel;
+    XftColor colors[NumColors];
     int font_width, font_height;
     XftFont* font;
 };
@@ -71,32 +79,15 @@ load_colors(struct X11 *x11)
 {
     Colormap cmap = DefaultColormap(x11->dpy, x11->screen);
 
-    // init XftColor for use with text
-    if (XftColorAllocName(x11->dpy,
-                           DefaultVisual(x11->dpy, x11->screen),
-                           cmap,
-                          "black", &x11->fcol_fg) == False)
-    {
-        fprintf(stderr, "Could not load font fg color\n");
-        return false;
-    }
-
-    if (XftColorAllocName(x11->dpy,
-                           DefaultVisual(x11->dpy, x11->screen),
-                           cmap,
-                          "white", &x11->fcol_bg) == False)
-    {
-        fprintf(stderr, "Could not load font bg color\n");
-        return false;
-    }
-
-    if (XftColorAllocName(x11->dpy,
-                           DefaultVisual(x11->dpy, x11->screen),
-                           cmap,
-                          "grey", &x11->fcol_sel) == False)
-    {
-        fprintf(stderr, "Could not load font sel color\n");
-        return false;
+    for (int i = 0; i < NumColors; i++) {
+        if (XftColorAllocName(x11->dpy,
+                            DefaultVisual(x11->dpy, x11->screen),
+                            cmap,
+                            colors[i], &x11->colors[i]) == False)
+        {
+            fprintf(stderr, "Could not load color: %s\n", colors[i]);
+            return false;
+        }
     }
 
     return true;
@@ -168,14 +159,14 @@ void
 draw_bar(struct X11 *x11)
 {
     int cellh = 22 + 10;
-    XftDrawRect(x11->fdraw, &x11->fcol_bg, 0, 0, x11->sw, cellh);
+    XftDrawRect(x11->fdraw, &x11->colors[White], 0, 0, x11->sw, cellh);
 
     char cell;
     int xoff = 0;
 
     char row[3] = "[0]";
     row[1] = '0' + ccy;
-    XftDrawString8(x11->fdraw, &x11->fcol_fg, x11->font,
+    XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
                 xoff,
                 x11->font->ascent,
                 (XftChar8 *)&row, 3);
@@ -186,9 +177,9 @@ draw_bar(struct X11 *x11)
         xoff += (x11->font_width + 8);
 
         if (i == ccx)
-            XftDrawRect(x11->fdraw, &x11->fcol_sel, xoff-4, 0, 8+x11->font_width, cellh);
+            XftDrawRect(x11->fdraw, &x11->colors[Gray], xoff-4, 0, 8+x11->font_width, cellh);
 
-        XftDrawString8(x11->fdraw, &x11->fcol_fg, x11->font,
+        XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
                     xoff,
                     x11->font->ascent,
                     (XftChar8 *)&cell, 1);
