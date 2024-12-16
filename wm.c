@@ -47,6 +47,7 @@ struct Client
 };
 
 Client* clients;
+Client* hand;
 
 typedef struct Cell Cell;
 struct Cell
@@ -179,7 +180,7 @@ draw_bar(struct X11 *x11)
 
         if (i == ccx)
             XftDrawRect(x11->fdraw, &x11->colors[LightBlue], xoff-4, 0, 8+x11->font_width, cellh);
-        else if (cells[ccy][i].primary != NULL)
+        else if ((cells[ccy][i].primary != NULL) || (cells[ccy][i].secondary != NULL))
             XftDrawRect(x11->fdraw, &x11->colors[Gray], xoff-4, 0, 8+x11->font_width, cellh);
 
         XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
@@ -209,21 +210,50 @@ clip(int n)
 }
 
 void
+update_cell_layout()
+{
+    Cell* cell = &cells[ccy][ccx];
+    bool is_pri = false, is_sec = false;
+    int offy = 22 + 10;
+
+    if (cell->primary != NULL)
+      is_pri = true;
+    if (cell->secondary != NULL)
+      is_sec = true;
+
+    // TODO: only tiling layout for the moment
+    if (is_pri && is_sec) {
+        // both windows present
+        XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
+                            x11.sw/2, x11.sh - offy);
+        XMoveResizeWindow(x11.dpy, cell->secondary->win, x11.sw/2, offy,
+                            x11.sw/2, x11.sh - offy);
+    } else if (is_pri && !is_sec) {
+        XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
+                            x11.sw, x11.sh - offy);
+    } else if (!is_pri && is_sec) {
+        XMoveResizeWindow(x11.dpy, cell->secondary->win, 0, offy,
+                            x11.sw, x11.sh - offy);
+    }
+}
+
+void
 update_view(int prevy, int prevx){
-    if ((prevx == ccx) && (prevy == ccy))
-        return;
 
     // unmap the windows show previously
-    // TODO: deal with layout and secondary win here
     Cell* prev = &cells[prevy][prevx];
     if (prev->primary != NULL)
         XUnmapWindow(x11.dpy, prev->primary->win);
+    if (prev->secondary != NULL)
+        XUnmapWindow(x11.dpy, prev->secondary->win);
 
     // map the current cell's window(s) here
-    // TODO: deal with secondary and layout here
+    // TODO: deal with layout here
     Cell* curr = &cells[ccy][ccx];
     if (curr->primary != NULL)
         XMapWindow(x11.dpy, curr->primary->win);
+    if (curr->secondary != NULL)
+        XMapWindow(x11.dpy, curr->secondary->win);
 
     draw_bar(&x11);
 }
@@ -232,6 +262,7 @@ void
 kill_client(){
     Cell* curr = &cells[ccy][ccx];
     // TODO: lookup the focused client in a better way than this
+    // cannot kill secondary window with this logic
     if (curr->primary != NULL) {
         // TODO: send a clean WM_DELETE_WINDOW event
         XKillClient(x11.dpy, curr->primary->win);
@@ -240,6 +271,7 @@ kill_client(){
         delete_client(clients, curr->primary);
 
         curr->primary = NULL;
+        update_cell_layout();
     }
 }
 
@@ -303,7 +335,7 @@ handleConfigureRequest(XConfigureRequestEvent *ev)
 
     XConfigureWindow(x11.dpy, ev->window, ev->value_mask, &changes);
 
-    // resize to our desired shape
+    // resize to our initial desired shape
     int offy = 22 + 10;
     XMoveResizeWindow(x11.dpy, ev->window, 0, offy,
                       x11.sw, x11.sh - offy);
@@ -330,16 +362,29 @@ handleMapRequest(XMapRequestEvent *ev)
         c->next = clients;
         clients = c;
 
-        // TODO: need to check if current cell is free
+        // assume we can place this client
         c->cx = ccx;
         c->cy = ccy;
 
-        // TODO: find the right slot to put it in
-        cells[ccy][ccx].primary = c;
+        Cell* cc = &cells[ccy][ccx];
+        // find the right slot to put it in
+        if (cc->primary == NULL) {
+            cc->primary = c;
+        } else if (cc->secondary == NULL) {
+            cc->secondary = c;
+        } else {
+            // we can't place this window yet
+            c->cx = -1;
+            c->cy = -1;
+
+            // put it in hand
+            // TODO: check if hand is free
+            hand = c;
+        }
     }
 
-    XRaiseWindow(x11.dpy, c->win);
-    XMapWindow(x11.dpy, c->win);
+    update_cell_layout();
+    update_view(ccy, ccx);
 }
 
 void
@@ -360,12 +405,13 @@ handleDestroyNotify(XDestroyWindowEvent *ev)
     }
 
     // undo the mapping in the cells structure
-    // TODO: handle secondary windows
     if (c == cells[c->cy][c->cx].primary)
         cells[c->cy][c->cx].primary = NULL;
+    if (c == cells[c->cy][c->cx].secondary)
+        cells[c->cy][c->cx].secondary = NULL;
 
     delete_client(clients, c);
-
+    update_cell_layout();
     draw_bar(&x11);
 }
 
@@ -376,6 +422,7 @@ int main() {
         return 1;
 
     clients = NULL;
+    hand = NULL;
 
     draw_bar(&x11);
 
