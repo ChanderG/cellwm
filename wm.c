@@ -18,6 +18,11 @@ enum ColorType {
 };
 static char* colors[NumColors] = {"black", "white", "gray", "lightblue"};
 
+enum Layout {
+    Monocle,
+    Tiled
+};
+
 struct X11
 {
     Display *dpy;
@@ -52,6 +57,8 @@ Client* hand;
 typedef struct Cell Cell;
 struct Cell
 {
+    enum Layout layout;
+
     Client* primary;
     Client* secondary;
 };
@@ -114,7 +121,8 @@ x11_setup(struct X11 *x11)
     // little trick lifted from dwm
     unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
-    KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down, XK_k };
+    KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down,
+                      XK_k, XK_m, XK_t, XK_f };
 
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
         for (unsigned int k = 0; k < LENGTH(syms); k++)
@@ -221,13 +229,19 @@ update_cell_layout()
     if (cell->secondary != NULL)
       is_sec = true;
 
-    // TODO: only tiling layout for the moment
     if (is_pri && is_sec) {
         // both windows present
-        XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
-                            x11.sw/2, x11.sh - offy);
-        XMoveResizeWindow(x11.dpy, cell->secondary->win, x11.sw/2, offy,
-                            x11.sw/2, x11.sh - offy);
+        if (cell->layout == Tiled) {
+            XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
+                                x11.sw/2, x11.sh - offy);
+            XMoveResizeWindow(x11.dpy, cell->secondary->win, x11.sw/2, offy,
+                                x11.sw/2, x11.sh - offy);
+        } else {
+            XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
+                                x11.sw, x11.sh - offy);
+            XMoveResizeWindow(x11.dpy, cell->secondary->win, 0, offy,
+                                x11.sw, x11.sh - offy);
+        }
     } else if (is_pri && !is_sec) {
         XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
                             x11.sw, x11.sh - offy);
@@ -248,12 +262,19 @@ update_view(int prevy, int prevx){
         XUnmapWindow(x11.dpy, prev->secondary->win);
 
     // map the current cell's window(s) here
-    // TODO: deal with layout here
     Cell* curr = &cells[ccy][ccx];
-    if (curr->primary != NULL)
-        XMapWindow(x11.dpy, curr->primary->win);
-    if (curr->secondary != NULL)
-        XMapWindow(x11.dpy, curr->secondary->win);
+    if (curr->layout == Tiled) {
+        if (curr->primary != NULL)
+            XMapWindow(x11.dpy, curr->primary->win);
+        if (curr->secondary != NULL)
+            XMapWindow(x11.dpy, curr->secondary->win);
+    } else {
+        // only display one window in Monocle
+        if (curr->primary != NULL)
+            XMapWindow(x11.dpy, curr->primary->win);
+        else if (curr->secondary != NULL)
+            XMapWindow(x11.dpy, curr->secondary->win);
+    }
 
     draw_bar(&x11);
 }
@@ -311,6 +332,24 @@ handleKeyPress(XKeyEvent *ev)
             break;
         case XK_k:
             kill_client();
+            break;
+        case XK_m:
+            cells[ccy][ccx].layout = Monocle;
+            update_cell_layout();
+            update_view(ccy, ccx);
+            break;
+        case XK_t:
+            cells[ccy][ccx].layout = Tiled;
+            update_cell_layout();
+            update_view(ccy, ccx);
+            break;
+        case XK_f: // flip entries in the cell
+            Cell *curr = &cells[ccy][ccx];
+            Client *tmp = curr->primary;
+            curr->primary = curr->secondary;
+            curr->secondary = tmp;
+            update_cell_layout();
+            update_view(ccy, ccx);
             break;
         case XK_F1:
             spawn("xterm");
