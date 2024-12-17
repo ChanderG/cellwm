@@ -218,6 +218,34 @@ clip(int n)
 }
 
 void
+update_view(int prevy, int prevx){
+
+    // unmap the windows show previously
+    Cell* prev = &cells[prevy][prevx];
+    if (prev->primary != NULL)
+        XUnmapWindow(x11.dpy, prev->primary->win);
+    if (prev->secondary != NULL)
+        XUnmapWindow(x11.dpy, prev->secondary->win);
+
+    // map the current cell's window(s) here
+    Cell* curr = &cells[ccy][ccx];
+    if (curr->layout == Tiled) {
+        if (curr->primary != NULL)
+            XMapWindow(x11.dpy, curr->primary->win);
+        if (curr->secondary != NULL)
+            XMapWindow(x11.dpy, curr->secondary->win);
+    } else {
+        // only display one window in Monocle
+        if (curr->primary != NULL)
+            XMapWindow(x11.dpy, curr->primary->win);
+        else if (curr->secondary != NULL)
+            XMapWindow(x11.dpy, curr->secondary->win);
+    }
+
+    draw_bar(&x11);
+}
+
+void
 update_cell_layout()
 {
     Cell* cell = &cells[ccy][ccx];
@@ -249,34 +277,8 @@ update_cell_layout()
         XMoveResizeWindow(x11.dpy, cell->secondary->win, 0, offy,
                             x11.sw, x11.sh - offy);
     }
-}
 
-void
-update_view(int prevy, int prevx){
-
-    // unmap the windows show previously
-    Cell* prev = &cells[prevy][prevx];
-    if (prev->primary != NULL)
-        XUnmapWindow(x11.dpy, prev->primary->win);
-    if (prev->secondary != NULL)
-        XUnmapWindow(x11.dpy, prev->secondary->win);
-
-    // map the current cell's window(s) here
-    Cell* curr = &cells[ccy][ccx];
-    if (curr->layout == Tiled) {
-        if (curr->primary != NULL)
-            XMapWindow(x11.dpy, curr->primary->win);
-        if (curr->secondary != NULL)
-            XMapWindow(x11.dpy, curr->secondary->win);
-    } else {
-        // only display one window in Monocle
-        if (curr->primary != NULL)
-            XMapWindow(x11.dpy, curr->primary->win);
-        else if (curr->secondary != NULL)
-            XMapWindow(x11.dpy, curr->secondary->win);
-    }
-
-    draw_bar(&x11);
+    update_view(ccy, ccx);
 }
 
 void
@@ -336,12 +338,10 @@ handleKeyPress(XKeyEvent *ev)
         case XK_m:
             cells[ccy][ccx].layout = Monocle;
             update_cell_layout();
-            update_view(ccy, ccx);
             break;
         case XK_t:
             cells[ccy][ccx].layout = Tiled;
             update_cell_layout();
-            update_view(ccy, ccx);
             break;
         case XK_f: // flip entries in the cell
             Cell *curr = &cells[ccy][ccx];
@@ -349,7 +349,6 @@ handleKeyPress(XKeyEvent *ev)
             curr->primary = curr->secondary;
             curr->secondary = tmp;
             update_cell_layout();
-            update_view(ccy, ccx);
             break;
         case XK_F1:
             spawn("xterm");
