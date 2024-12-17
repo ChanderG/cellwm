@@ -15,9 +15,10 @@ enum ColorType {
     White,
     Gray,
     LightBlue,
+    Red,
     NumColors
 };
-static char* colors[NumColors] = {"black", "white", "gray", "lightblue"};
+static char* colors[NumColors] = {"black", "white", "gray", "lightblue", "red"};
 
 enum Layout {
     Monocle,
@@ -65,6 +66,17 @@ struct Cell
 };
 
 Cell cells[9][9];
+
+enum TimerState {
+    OFF,
+    ON,
+    ELAPSED
+};
+enum TimerState timer = OFF;
+int timer_dur = 20*60;
+int timer_elapsed = 0;
+
+int cellh = 22 + 10;
 
 void
 delete_client(Client* clients, Client* cl) {
@@ -123,7 +135,7 @@ x11_setup(struct X11 *x11)
     unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
     KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down,
-                      XK_k, XK_m, XK_t, XK_f };
+                      XK_k, XK_m, XK_t, XK_f, XK_i };
 
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
         for (unsigned int k = 0; k < LENGTH(syms); k++)
@@ -169,7 +181,6 @@ x11_setup(struct X11 *x11)
 void
 draw_bar(struct X11 *x11)
 {
-    int cellh = 22 + 10;
     XftDrawRect(x11->fdraw, &x11->colors[White], 0, 0, x11->sw - 30*x11->font_width, cellh);
 
     char cell;
@@ -353,6 +364,23 @@ handleKeyPress(XKeyEvent *ev)
             curr->secondary = tmp;
             update_cell_layout();
             break;
+        case XK_i:
+            if (timer == OFF) {
+                timer = ON;
+                XftDrawRect(x11.fdraw, &x11.colors[LightBlue], x11.sw - 19*x11.font_width, 0,
+                    19*x11.font_width, cellh/5);
+            } else if (timer == ON) {
+                timer = OFF;
+                XftDrawRect(x11.fdraw, &x11.colors[LightBlue], x11.sw - 19*x11.font_width, 0,
+                    19*x11.font_width, cellh/5);
+            } else {
+                timer = OFF;
+                // undo the rectangle
+                XftDrawRect(x11.fdraw, &x11.colors[Black], 0, x11.sh/2 - 100,
+                            x11.sw, 200);
+                update_view(ccy, ccx);
+            }
+            break;
         case XK_F1:
             spawn("xterm");
             break;
@@ -466,18 +494,38 @@ timer_update(void* arg)
     char tstr[20];
 
     while (true) {
-        sleep(30);
-
         // get current time
         t = time(NULL);
         tm_info = localtime(&t);
         strftime(tstr, 20, "%a %b %e, %H:%M", tm_info);
 
-        // TODO: run pomodoro checks and updates
+        // run pomodoro checks and updates
+        if (timer == ON) {
+            timer_elapsed += 30;
 
-        int cellh = 22 + 10;
-        XftDrawRect(x11.fdraw, &x11.colors[White], x11.sw - 19*x11.font_width, 0,
-                    19*x11.font_width, cellh);
+            if (timer_elapsed >= timer_dur) {
+                // end of period
+                timer = ELAPSED;
+                timer_elapsed = 0;
+            }
+
+            XftDrawRect(x11.fdraw, &x11.colors[Red], 0, x11.sh/2 - 100,
+                        x11.sw, 200);
+            // hide window temporarily
+            Cell* c = &cells[ccy][ccx];
+            if (c->primary != NULL)
+                XUnmapWindow(x11.dpy, c->primary->win);
+            if (c->secondary != NULL)
+                XUnmapWindow(x11.dpy, c->secondary->win);
+        }
+
+        int tb_width = 19*x11.font_width;
+        XftDrawRect(x11.fdraw, &x11.colors[White], x11.sw - tb_width, 0,
+                    tb_width, cellh);
+
+        if (timer == ON)
+          XftDrawRect(x11.fdraw, &x11.colors[Gray], x11.sw - tb_width, 0,
+                      tb_width*timer_elapsed/timer_dur, cellh);
 
         XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
                     x11.sw - 18*x11.font_width,
@@ -485,6 +533,8 @@ timer_update(void* arg)
                     (XftChar8 *)&tstr, 20);
 
         XSync(x11.dpy, False);
+
+        sleep(30);
     }
 
     return NULL;
