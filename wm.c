@@ -196,6 +196,19 @@ draw_bar(struct X11 *x11)
                     x11->font->ascent,
                     (XftChar8 *)&cell, 1);
     }
+    xoff += (x11->font_width + 8);
+
+    // draw layout
+    xoff += 5;
+    char layout = 'M';
+    if (cells[ccy][ccx].layout == Tiled)
+        layout = '=';
+
+    XftDrawRect(x11->fdraw, &x11->colors[Black], xoff-4, 0, 8+x11->font_width, cellh);
+    XftDrawString8(x11->fdraw, &x11->colors[White], x11->font,
+                xoff,
+                x11->font->ascent,
+                (XftChar8 *)&layout, 1);
 }
 
 void
