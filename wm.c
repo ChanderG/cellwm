@@ -249,33 +249,22 @@ void
 update_cell_layout()
 {
     Cell* cell = &cells[ccy][ccx];
-    bool is_pri = false, is_sec = false;
     int offy = 22 + 10;
 
-    if (cell->primary != NULL)
-      is_pri = true;
-    if (cell->secondary != NULL)
-      is_sec = true;
-
-    if (is_pri && is_sec) {
-        // both windows present
-        if (cell->layout == Tiled) {
+    if (cell->layout == Tiled) {
+        if (cell->primary != NULL)
             XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
                                 x11.sw/2, x11.sh - offy);
+        if (cell->secondary != NULL)
             XMoveResizeWindow(x11.dpy, cell->secondary->win, x11.sw/2, offy,
                                 x11.sw/2, x11.sh - offy);
-        } else {
+    } else {
+        if (cell->primary != NULL)
             XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
                                 x11.sw, x11.sh - offy);
+        if (cell->secondary != NULL)
             XMoveResizeWindow(x11.dpy, cell->secondary->win, 0, offy,
                                 x11.sw, x11.sh - offy);
-        }
-    } else if (is_pri && !is_sec) {
-        XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
-                            x11.sw, x11.sh - offy);
-    } else if (!is_pri && is_sec) {
-        XMoveResizeWindow(x11.dpy, cell->secondary->win, 0, offy,
-                            x11.sw, x11.sh - offy);
     }
 
     update_view(ccy, ccx);
