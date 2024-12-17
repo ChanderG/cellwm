@@ -1,4 +1,4 @@
-LDLIBS += -lX11 -lXft \
+LDLIBS += -lX11 -lXft -lpthread \
 	`pkg-config --libs fontconfig`
 
 CFLAGS += -g -std=c99 -Wall -Wextra \

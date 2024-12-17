@@ -6,6 +6,7 @@
 #include <X11/XKBlib.h>
 #include <X11/cursorfont.h>
 #include <X11/Xft/Xft.h>
+#include <pthread.h>
 
 #define LENGTH(X) (sizeof (X) / sizeof (X)[0])
 
@@ -169,7 +170,7 @@ void
 draw_bar(struct X11 *x11)
 {
     int cellh = 22 + 10;
-    XftDrawRect(x11->fdraw, &x11->colors[White], 0, 0, x11->sw, cellh);
+    XftDrawRect(x11->fdraw, &x11->colors[White], 0, 0, x11->sw - 30*x11->font_width, cellh);
 
     char cell;
     int xoff = 0;
@@ -455,6 +456,40 @@ handleDestroyNotify(XDestroyWindowEvent *ev)
     draw_bar(&x11);
 }
 
+void*
+timer_update(void* arg)
+{
+    (void)arg;
+
+    time_t t;
+    struct tm *tm_info;
+    char tstr[20];
+
+    while (true) {
+        sleep(30);
+
+        // get current time
+        t = time(NULL);
+        tm_info = localtime(&t);
+        strftime(tstr, 20, "%a %b %e, %H:%M", tm_info);
+
+        // TODO: run pomodoro checks and updates
+
+        int cellh = 22 + 10;
+        XftDrawRect(x11.fdraw, &x11.colors[White], x11.sw - 19*x11.font_width, 0,
+                    19*x11.font_width, cellh);
+
+        XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
+                    x11.sw - 18*x11.font_width,
+                    x11.font->ascent,
+                    (XftChar8 *)&tstr, 20);
+
+        XSync(x11.dpy, False);
+    }
+
+    return NULL;
+}
+
 int main() {
     XInitThreads();
 
@@ -465,6 +500,9 @@ int main() {
     hand = NULL;
 
     draw_bar(&x11);
+
+    pthread_t timer_tid;
+    pthread_create(&timer_tid, NULL, &timer_update, NULL);
 
     XEvent ev;
     while(true) {
