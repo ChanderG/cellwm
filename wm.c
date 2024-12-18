@@ -38,6 +38,10 @@ struct X11
     XftColor colors[NumColors];
     int font_width, font_height;
     XftFont* font;
+
+    Window handwin;
+    int hx, hy, hw, hh;
+    XftDraw* hdraw;
 };
 
 struct X11 x11;
@@ -146,15 +150,22 @@ x11_setup(struct X11 *x11)
 
     x11->screen = DefaultScreen(x11->dpy);
     x11->root = XDefaultRootWindow(x11->dpy);
-
     x11->sw = DisplayWidth(x11->dpy, x11->screen);
     x11->sh = DisplayHeight(x11->dpy, x11->screen);
+
+    x11->hx = x11->sh/2; x11->hy = x11->sw/2;
+    x11->hw = x11->sh/4; x11->hh = x11->sw/4;
+    x11->handwin =  XCreateSimpleWindow(x11->dpy, x11->root,
+                                        x11->hx, x11->hy, x11->hw, x11->hh,
+                                        2, BlackPixel(x11->dpy, x11->screen),
+                                        WhitePixel(x11->dpy, x11->screen));
+
 
     // little trick lifted from dwm
     unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
     KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down,
-                      XK_k, XK_m, XK_t, XK_f, XK_i };
+                      XK_k, XK_m, XK_t, XK_f, XK_i, XK_l, XK_u };
 
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
         for (unsigned int k = 0; k < LENGTH(syms); k++)
@@ -171,11 +182,14 @@ x11_setup(struct X11 *x11)
     if (!load_colors(x11))
         return false;
 
-    // init draw for xft drawing
+    // init draw for xft drawing onto root
     x11->fdraw = XftDrawCreate(x11->dpy, x11->root,
                                DefaultVisual(x11->dpy, x11->screen),
                                DefaultColormap(x11->dpy, x11->screen));
-    if (x11->fdraw == NULL)
+    x11->hdraw = XftDrawCreate(x11->dpy, x11->handwin,
+                               DefaultVisual(x11->dpy, x11->screen),
+                               DefaultColormap(x11->dpy, x11->screen));
+    if ((x11->fdraw == NULL) || (x11->hdraw == NULL))
     {
         fprintf(stderr, "Could not create xft draw \n");
         return false;
@@ -195,6 +209,23 @@ x11_setup(struct X11 *x11)
 
     XSync(x11->dpy, False);
     return true;
+}
+
+void
+draw_hand()
+{
+    if (hand != NULL)
+        XftDrawString8(x11.hdraw, &x11.colors[Black], x11.font,
+                        50, 50, (XftChar8 *)&hand->title, 10);
+}
+
+void
+update_hand()
+{
+    if (hand == NULL)
+        XUnmapWindow(x11.dpy, x11.handwin);
+    else
+        XMapWindow(x11.dpy, x11.handwin);
 }
 
 void
@@ -297,6 +328,9 @@ update_view(int prevy, int prevx){
             XMapWindow(x11.dpy, curr->secondary->win);
     }
 
+    if (hand != NULL)
+        XRaiseWindow(x11.dpy, x11.handwin);
+
     draw_bar(&x11);
 }
 
@@ -340,6 +374,52 @@ kill_client(){
         curr->primary = NULL;
         update_cell_layout();
     }
+}
+
+void
+place_hand()
+{
+    Cell *c = &cells[ccy][ccx];
+    if (c->primary == NULL) {
+        c->primary = hand;
+    } else if (c->secondary == NULL) {
+        c->secondary = hand;
+    } else {
+        // nothing we can do from here
+        return;
+    }
+
+    // place it in
+    hand->cx = ccx;
+    hand->cy = ccy;
+
+    // free up the emtpy hand
+    hand = NULL;
+    update_hand();
+    update_cell_layout();
+}
+
+void
+pickup_hand()
+{
+    Cell *c = &cells[ccy][ccx];
+    // nothing to pick up
+    if (c->primary == NULL)
+        return;
+    // hand is not empty
+    if (hand != NULL)
+        return;
+
+    hand = c->primary;
+    hand->cx = hand->cy = -1;
+
+    // need to manually unmap this window
+    // TODO: make this cleaner
+    c->primary = NULL;
+    XUnmapWindow(x11.dpy, hand->win);
+
+    update_hand();
+    update_cell_layout();
 }
 
 void
@@ -411,6 +491,12 @@ handleKeyPress(XKeyEvent *ev)
                 update_view(ccy, ccx);
             }
             break;
+        case XK_l:
+            place_hand();
+            break;
+        case XK_u:
+            pickup_hand();
+            break;
         case XK_F1:
             spawn("xterm");
             break;
@@ -480,6 +566,7 @@ handleMapRequest(XMapRequestEvent *ev)
             // put it in hand
             // TODO: check if hand is free
             hand = c;
+            update_hand();
         }
     }
 
@@ -588,6 +675,9 @@ int main() {
     XEvent ev;
     while(true) {
       XNextEvent(x11.dpy, &ev);
+
+      // windows on top need continuous drawing
+      draw_hand();
 
       switch(ev.type) {
         case KeyPress:
