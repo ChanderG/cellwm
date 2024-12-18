@@ -7,6 +7,7 @@
 #include <X11/cursorfont.h>
 #include <X11/Xft/Xft.h>
 #include <pthread.h>
+#include <X11/Xatom.h>
 
 #define LENGTH(X) (sizeof (X) / sizeof (X)[0])
 
@@ -49,6 +50,7 @@ struct Client
 {
     int cx, cy;
     Window win;
+    char title[100];
 
     Client *next;
 };
@@ -94,6 +96,23 @@ delete_client(Client* clients, Client* cl) {
         }
     }
     free(cl);
+}
+
+void
+get_title(Client *c)
+{
+    // fallback option
+    memcpy(c->title, "unknown", 7);
+    c->title[7] = '\0';
+
+	XTextProperty name;
+	if (!XGetTextProperty(x11.dpy, c->win, &name, XA_WM_NAME))
+        return;
+
+	if (name.encoding == XA_STRING) {
+		memcpy(c->title, (char *)name.value, 99);
+        c->title[100] = '\0';
+    }
 }
 
 bool
@@ -221,6 +240,17 @@ draw_bar(struct X11 *x11)
                 xoff,
                 x11->font->ascent,
                 (XftChar8 *)&layout, 1);
+    xoff += (x11->font_width + 8);
+
+    // draw title of primary window
+    Cell *cc = &cells[ccy][ccx];
+    if (cc->primary != NULL) {
+        XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
+                    xoff,
+                    x11->font->ascent,
+                    (XftChar8 *)&cc->primary->title, strlen(cc->primary->title));
+    }
+    // TODO: draw title of secondary window too?
 }
 
 void
@@ -434,6 +464,7 @@ handleMapRequest(XMapRequestEvent *ev)
         // assume we can place this client
         c->cx = ccx;
         c->cy = ccy;
+        get_title(c);
 
         Cell* cc = &cells[ccy][ccx];
         // find the right slot to put it in
