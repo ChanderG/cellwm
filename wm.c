@@ -275,8 +275,21 @@ draw_bar(struct X11 *x11)
                 (XftChar8 *)&layout, 1);
     xoff += (x11->font_width + 8);
 
-    // draw title of primary window
+    // lookup curr cell
     Cell *cc = &cells[ccy][ccx];
+
+    // draw window presence indicator
+    char indicator[] = "--";
+    if (cc->primary != NULL) indicator[0] = '*';
+    if (cc->secondary != NULL) indicator[1] = '*';
+
+    XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
+                xoff,
+                x11->font->ascent,
+                (XftChar8 *)&indicator, 2);
+    xoff += 2*(x11->font_width + 8);
+
+    // draw title of primary window
     if (cc->primary != NULL) {
         XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
                     xoff,
