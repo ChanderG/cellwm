@@ -170,8 +170,6 @@ x11_setup(struct X11 *x11)
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
         for (unsigned int k = 0; k < LENGTH(syms); k++)
             XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, syms[k]), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
-
-        XGrabKey(x11->dpy, XStringToKeysym("F1"), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
     }
 
     XSelectInput(x11->dpy, x11->root, SubstructureRedirectMask | SubstructureNotifyMask);
@@ -288,7 +286,7 @@ void
 spawn(const char *cmd)
 {
     if (!fork()) {
-        execlp(cmd, cmd, (char*) NULL);
+        system(cmd);
     }
 }
 
@@ -496,9 +494,6 @@ handleKeyPress(XKeyEvent *ev)
             break;
         case XK_u:
             pickup_hand();
-            break;
-        case XK_F1:
-            spawn("xterm");
             break;
     }
 }
