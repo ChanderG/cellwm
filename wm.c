@@ -165,11 +165,15 @@ x11_setup(struct X11 *x11)
     unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
     KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down,
-                      XK_k, XK_m, XK_t, XK_f, XK_i, XK_l, XK_u };
+                      XK_k, XK_m, XK_t, XK_f, XK_i, XK_l, XK_u};
+    KeySym numsyms[] = {XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9};
 
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
         for (unsigned int k = 0; k < LENGTH(syms); k++)
             XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, syms[k]), modifiers[j] | Mod1Mask, x11->root, False, GrabModeAsync, GrabModeAsync);
+        // bind the num keys with shift mask to deal with inverted number row
+        for (unsigned int k = 0; k < LENGTH(numsyms); k++)
+            XGrabKey(x11->dpy, XKeysymToKeycode(x11->dpy, numsyms[k]), modifiers[j] | Mod1Mask | ShiftMask, x11->root, False, GrabModeAsync, GrabModeAsync);
     }
 
     XSelectInput(x11->dpy, x11->root, SubstructureRedirectMask | SubstructureNotifyMask);
@@ -293,12 +297,7 @@ spawn(const char *cmd)
 int
 clip(int n)
 {
-  if (n < 1)
-    return 1;
-  else if (n > 9)
-    return 9;
-  else
-    return n;
+  return (n < 1) ? 9 : (n > 9) ? 1 : n;
 }
 
 void
@@ -435,25 +434,27 @@ handleKeyPress(XKeyEvent *ev)
             spawn("dmenu_run");
             break;
         case XK_Left:
-            prevx = ccx;
-            ccx = clip(ccx-1);
-            update_view(ccy, prevx);
-            break;
+            prevx = ccx; ccx = clip(ccx-1);
+            update_view(ccy, prevx); break;
         case XK_Right:
-            prevx = ccx;
-            ccx = clip(ccx+1);
-            update_view(ccy, prevx);
-            break;
+            prevx = ccx; ccx = clip(ccx+1);
+            update_view(ccy, prevx); break;
+        // actually with the shift mask here, but we are not checking
+        case XK_1: prevx = ccx; ccx = 1; update_view(ccy, prevx); break;
+        case XK_2: prevx = ccx; ccx = 2; update_view(ccy, prevx); break;
+        case XK_3: prevx = ccx; ccx = 3; update_view(ccy, prevx); break;
+        case XK_4: prevx = ccx; ccx = 4; update_view(ccy, prevx); break;
+        case XK_5: prevx = ccx; ccx = 5; update_view(ccy, prevx); break;
+        case XK_6: prevx = ccx; ccx = 6; update_view(ccy, prevx); break;
+        case XK_7: prevx = ccx; ccx = 7; update_view(ccy, prevx); break;
+        case XK_8: prevx = ccx; ccx = 8; update_view(ccy, prevx); break;
+        case XK_9: prevx = ccx; ccx = 9; update_view(ccy, prevx); break;
         case XK_Up:
-            prevy = ccy;
-            ccy = clip(ccy-1);
-            update_view(prevy, ccx);
-            break;
+            prevy = ccy; ccy = clip(ccy-1);
+            update_view(prevy, ccx); break;
         case XK_Down:
-            prevy = ccy;
-            ccy = clip(ccy+1);
-            update_view(prevy, ccx);
-            break;
+            prevy = ccy; ccy = clip(ccy+1);
+            update_view(prevy, ccx); break;
         case XK_k:
             kill_client();
             break;
