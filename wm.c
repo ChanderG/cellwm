@@ -621,6 +621,15 @@ timer_update(void* arg)
     char tstr[20];
 
     while (true) {
+        // get current battery status
+        FILE* fd_power = fopen("/sys/class/power_supply/AC/online", "r");
+        FILE* fd_batt = fopen("/sys/class/power_supply/BAT0/capacity", "r");
+        int ac, bat;
+        fscanf(fd_power, "%d", &ac);
+        fscanf(fd_batt, "%d", &bat);
+        fclose(fd_power);
+        fclose(fd_batt);
+
         // get current time
         t = time(NULL);
         tm_info = localtime(&t);
@@ -646,6 +655,23 @@ timer_update(void* arg)
                 XUnmapWindow(x11.dpy, c->secondary->win);
         }
 
+        // draw battery info onto bar
+        XftDrawRect(x11.fdraw, &x11.colors[White], x11.sw - 24*x11.font_width, 0,
+                    5*x11.font_width, cellh);
+        char blvl[4];
+        sprintf(blvl, "%3d", bat); blvl[3] = '%';
+        if (bat < 20)
+            XftDrawRect(x11.fdraw, &x11.colors[Red], x11.sw - 24*x11.font_width, 0,
+                        5*x11.font_width, cellh);
+        if (ac == 1)
+            XftDrawRect(x11.fdraw, &x11.colors[LightBlue], x11.sw - 24*x11.font_width, 0,
+                        5*x11.font_width, cellh/5);
+        XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
+                    x11.sw - 24*x11.font_width,
+                    x11.font->ascent,
+                    (XftChar8 *)&blvl, 4);
+
+        // draw timer based background onto bar
         int tb_width = 19*x11.font_width;
         XftDrawRect(x11.fdraw, &x11.colors[White], x11.sw - tb_width, 0,
                     tb_width, cellh);
@@ -654,6 +680,7 @@ timer_update(void* arg)
           XftDrawRect(x11.fdraw, &x11.colors[Gray], x11.sw - tb_width, 0,
                       tb_width*timer_elapsed/timer_dur, cellh);
 
+        // write time
         XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
                     x11.sw - 18*x11.font_width,
                     x11.font->ascent,
