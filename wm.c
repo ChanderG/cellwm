@@ -530,11 +530,6 @@ handleConfigureRequest(XConfigureRequestEvent *ev)
     changes.stack_mode = ev->detail;
 
     XConfigureWindow(x11.dpy, ev->window, ev->value_mask, &changes);
-
-    // resize to our initial desired shape
-    int offy = 22 + 10;
-    XMoveResizeWindow(x11.dpy, ev->window, 0, offy,
-                      x11.sw, x11.sh - offy);
 }
 
 void
