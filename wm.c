@@ -154,8 +154,9 @@ x11_setup(struct X11 *x11)
     x11->sw = DisplayWidth(x11->dpy, x11->screen);
     x11->sh = DisplayHeight(x11->dpy, x11->screen);
 
-    x11->hx = x11->sh/2; x11->hy = x11->sw/2;
-    x11->hw = x11->sh/4; x11->hh = x11->sw/4;
+    int cw = 150, ch = 250;
+    x11->hx = x11->sw/2 - cw/2; x11->hy = x11->sh - ch - 100;
+    x11->hw = cw; x11->hh = ch;
     x11->handwin =  XCreateSimpleWindow(x11->dpy, x11->root,
                                         x11->hx, x11->hy, x11->hw, x11->hh,
                                         2, BlackPixel(x11->dpy, x11->screen),
@@ -219,7 +220,7 @@ draw_hand()
 {
     if (hand != NULL)
         XftDrawString8(x11.hdraw, &x11.colors[Black], x11.font,
-                        50, 50, (XftChar8 *)&hand->title, 10);
+                        30, 30, (XftChar8 *)&hand->title, 10);
 }
 
 void
