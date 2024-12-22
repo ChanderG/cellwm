@@ -85,7 +85,8 @@ int timer_elapsed = 0;
 int cellh = 22 + 10;
 
 void
-delete_client(Client* clients, Client* cl) {
+delete_client(Client* cl)
+{
     // first entry
     if (clients == cl) {
         clients = cl->next;
@@ -379,7 +380,7 @@ kill_client(){
         XKillClient(x11.dpy, curr->primary->win);
 
         // remove this from the list of clients
-        delete_client(clients, curr->primary);
+        delete_client(curr->primary);
 
         curr->primary = NULL;
         update_cell_layout();
@@ -606,7 +607,7 @@ handleDestroyNotify(XDestroyWindowEvent *ev)
     if (c == cells[c->cy][c->cx].secondary)
         cells[c->cy][c->cx].secondary = NULL;
 
-    delete_client(clients, c);
+    delete_client(c);
     update_cell_layout();
     draw_bar(&x11);
 }
