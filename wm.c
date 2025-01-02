@@ -247,7 +247,7 @@ draw_bar(struct X11 *x11)
     row[1] = '0' + ccy;
     XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
                 xoff,
-                x11->font->ascent,
+                cellh - 5,
                 (XftChar8 *)&row, 3);
     xoff += (x11->font_width*2);
 
@@ -262,7 +262,7 @@ draw_bar(struct X11 *x11)
 
         XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
                     xoff,
-                    x11->font->ascent,
+                    cellh - 5,
                     (XftChar8 *)&cell, 1);
     }
     xoff += (x11->font_width + 8);
@@ -276,7 +276,7 @@ draw_bar(struct X11 *x11)
     XftDrawRect(x11->fdraw, &x11->colors[Black], xoff-4, 0, 8+x11->font_width, cellh);
     XftDrawString8(x11->fdraw, &x11->colors[White], x11->font,
                 xoff,
-                x11->font->ascent,
+                cellh - 5,
                 (XftChar8 *)&layout, 1);
     xoff += (x11->font_width + 8);
 
@@ -290,7 +290,7 @@ draw_bar(struct X11 *x11)
 
     XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
                 xoff,
-                x11->font->ascent,
+                cellh - 5,
                 (XftChar8 *)&indicator, 2);
     xoff += 2*(x11->font_width + 8);
 
@@ -298,7 +298,7 @@ draw_bar(struct X11 *x11)
     if (cc->primary != NULL) {
         XftDrawString8(x11->fdraw, &x11->colors[Black], x11->font,
                     xoff,
-                    x11->font->ascent,
+                    cellh - 5,
                     (XftChar8 *)&cc->primary->title, strlen(cc->primary->title));
     }
     // TODO: draw title of secondary window too?
@@ -354,22 +354,21 @@ void
 update_cell_layout()
 {
     Cell* cell = &cells[ccy][ccx];
-    int offy = 22 + 10;
 
     if (cell->layout == Tiled) {
         if (cell->primary != NULL)
-            XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
-                                x11.sw/2, x11.sh - offy);
+            XMoveResizeWindow(x11.dpy, cell->primary->win, 0, cellh,
+                                x11.sw/2, x11.sh - cellh);
         if (cell->secondary != NULL)
-            XMoveResizeWindow(x11.dpy, cell->secondary->win, x11.sw/2, offy,
-                                x11.sw/2, x11.sh - offy);
+            XMoveResizeWindow(x11.dpy, cell->secondary->win, x11.sw/2, cellh,
+                                x11.sw/2, x11.sh - cellh);
     } else {
         if (cell->primary != NULL)
-            XMoveResizeWindow(x11.dpy, cell->primary->win, 0, offy,
-                                x11.sw, x11.sh - offy);
+            XMoveResizeWindow(x11.dpy, cell->primary->win, 0, cellh,
+                                x11.sw, x11.sh - cellh);
         if (cell->secondary != NULL)
-            XMoveResizeWindow(x11.dpy, cell->secondary->win, 0, offy,
-                                x11.sw, x11.sh - offy);
+            XMoveResizeWindow(x11.dpy, cell->secondary->win, 0, cellh,
+                                x11.sw, x11.sh - cellh);
     }
 
     update_view(ccy, ccx);
@@ -669,7 +668,7 @@ timer_update()
                     5*x11.font_width, cellh/5);
     XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
                 x11.sw - 24*x11.font_width,
-                x11.font->ascent,
+                cellh - 5,
                 (XftChar8 *)&blvl, 4);
 
     // draw timer based background onto bar
@@ -684,7 +683,7 @@ timer_update()
     // write time
     XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
                 x11.sw - 18*x11.font_width,
-                x11.font->ascent,
+                cellh - 5,
                 (XftChar8 *)&tstr, 20);
 
     XSync(x11.dpy, False);
