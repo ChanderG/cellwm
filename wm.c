@@ -3,11 +3,12 @@
 #include <unistd.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <X11/XKBlib.h>
 #include <X11/cursorfont.h>
 #include <X11/Xft/Xft.h>
-#include <pthread.h>
 #include <X11/Xatom.h>
+#include <stdint.h>
+#include <sys/timerfd.h>
+#include <sys/select.h>
 
 #define LENGTH(X) (sizeof (X) / sizeof (X)[0])
 
@@ -29,6 +30,7 @@ enum Layout {
 struct X11
 {
     Display *dpy;
+    int fd;
     int screen;
     Window root;
 
@@ -151,6 +153,7 @@ x11_setup(struct X11 *x11)
 
     x11->screen = DefaultScreen(x11->dpy);
     x11->root = XDefaultRootWindow(x11->dpy);
+    x11->fd = ConnectionNumber(x11->dpy);
     x11->sw = DisplayWidth(x11->dpy, x11->screen);
     x11->sh = DisplayHeight(x11->dpy, x11->screen);
 
@@ -437,7 +440,7 @@ pickup_hand()
 void
 handleKeyPress(XKeyEvent *ev)
 {
-    KeySym ksym = XkbKeycodeToKeysym(x11.dpy, ev->keycode, 0, 0);
+    KeySym ksym = XKeycodeToKeysym(x11.dpy, ev->keycode, 0);
 
     int prevx, prevy;
     switch (ksym)
@@ -608,92 +611,84 @@ handleDestroyNotify(XDestroyWindowEvent *ev)
     draw_bar(&x11);
 }
 
-void*
-timer_update(void* arg)
+void
+timer_update()
 {
-    (void)arg;
-
     time_t t;
     struct tm *tm_info;
     char tstr[20];
 
-    while (true) {
-        // get current battery status
-        FILE* fd_power = fopen("/sys/class/power_supply/AC/online", "r");
-        FILE* fd_batt = fopen("/sys/class/power_supply/BAT0/capacity", "r");
-        int ac, bat;
-        fscanf(fd_power, "%d", &ac);
-        fscanf(fd_batt, "%d", &bat);
-        fclose(fd_power);
-        fclose(fd_batt);
+    // get current battery status
+    FILE* fd_power = fopen("/sys/class/power_supply/AC/online", "r");
+    FILE* fd_batt = fopen("/sys/class/power_supply/BAT0/capacity", "r");
+    int ac, bat;
+    fscanf(fd_power, "%d", &ac);
+    fscanf(fd_batt, "%d", &bat);
+    fclose(fd_power);
+    fclose(fd_batt);
 
-        // get current time
-        t = time(NULL);
-        tm_info = localtime(&t);
-        strftime(tstr, 20, "%a %b %e, %H:%M", tm_info);
+    // get current time
+    t = time(NULL);
+    tm_info = localtime(&t);
+    strftime(tstr, 20, "%a %b %e, %H:%M", tm_info);
 
-        // run pomodoro checks and updates
-        if (timer == ON) {
-            timer_elapsed += 30;
+    // run pomodoro checks and updates
+    if (timer == ON) {
+        timer_elapsed += 30;
 
-            if (timer_elapsed >= timer_dur) {
-                // end of period
-                timer = ELAPSED;
-                timer_elapsed = 0;
-            }
-
-            XftDrawRect(x11.fdraw, &x11.colors[Red], 0, x11.sh/2 - 100,
-                        x11.sw, 200);
-            // hide window temporarily
-            Cell* c = &cells[ccy][ccx];
-            if (c->primary != NULL)
-                XUnmapWindow(x11.dpy, c->primary->win);
-            if (c->secondary != NULL)
-                XUnmapWindow(x11.dpy, c->secondary->win);
+        if (timer_elapsed >= timer_dur) {
+            // end of period
+            timer = ELAPSED;
+            timer_elapsed = 0;
         }
 
-        // draw battery info onto bar
-        XftDrawRect(x11.fdraw, &x11.colors[White], x11.sw - 24*x11.font_width, 0,
-                    5*x11.font_width, cellh);
-        char blvl[4];
-        sprintf(blvl, "%3d", bat); blvl[3] = '%';
-        if (bat < 20)
-            XftDrawRect(x11.fdraw, &x11.colors[Red], x11.sw - 24*x11.font_width, 0,
-                        5*x11.font_width, cellh);
-        if (ac == 1)
-            XftDrawRect(x11.fdraw, &x11.colors[LightBlue], x11.sw - 24*x11.font_width, 0,
-                        5*x11.font_width, cellh/5);
-        XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
-                    x11.sw - 24*x11.font_width,
-                    x11.font->ascent,
-                    (XftChar8 *)&blvl, 4);
-
-        // draw timer based background onto bar
-        int tb_width = 19*x11.font_width;
-        XftDrawRect(x11.fdraw, &x11.colors[White], x11.sw - tb_width, 0,
-                    tb_width, cellh);
-
-        if (timer == ON)
-          XftDrawRect(x11.fdraw, &x11.colors[Gray], x11.sw - tb_width, 0,
-                      tb_width*timer_elapsed/timer_dur, cellh);
-
-        // write time
-        XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
-                    x11.sw - 18*x11.font_width,
-                    x11.font->ascent,
-                    (XftChar8 *)&tstr, 20);
-
-        XSync(x11.dpy, False);
-
-        sleep(30);
+        XftDrawRect(x11.fdraw, &x11.colors[Red], 0, x11.sh/2 - 100,
+                    x11.sw, 200);
+        // hide window temporarily
+        Cell* c = &cells[ccy][ccx];
+        if (c->primary != NULL)
+            XUnmapWindow(x11.dpy, c->primary->win);
+        if (c->secondary != NULL)
+            XUnmapWindow(x11.dpy, c->secondary->win);
     }
 
-    return NULL;
+    // draw battery info onto bar
+    XftDrawRect(x11.fdraw, &x11.colors[White], x11.sw - 24*x11.font_width, 0,
+                5*x11.font_width, cellh);
+    char blvl[4];
+    sprintf(blvl, "%3d", bat); blvl[3] = '%';
+    if (bat < 20)
+        XftDrawRect(x11.fdraw, &x11.colors[Red], x11.sw - 24*x11.font_width, 0,
+                    5*x11.font_width, cellh);
+    if (ac == 1)
+        XftDrawRect(x11.fdraw, &x11.colors[LightBlue], x11.sw - 24*x11.font_width, 0,
+                    5*x11.font_width, cellh/5);
+    XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
+                x11.sw - 24*x11.font_width,
+                x11.font->ascent,
+                (XftChar8 *)&blvl, 4);
+
+    // draw timer based background onto bar
+    int tb_width = 19*x11.font_width;
+    XftDrawRect(x11.fdraw, &x11.colors[White], x11.sw - tb_width, 0,
+                tb_width, cellh);
+
+    if (timer == ON)
+        XftDrawRect(x11.fdraw, &x11.colors[Gray], x11.sw - tb_width, 0,
+                    tb_width*timer_elapsed/timer_dur, cellh);
+
+    // write time
+    XftDrawString8(x11.fdraw, &x11.colors[Black], x11.font,
+                x11.sw - 18*x11.font_width,
+                x11.font->ascent,
+                (XftChar8 *)&tstr, 20);
+
+    XSync(x11.dpy, False);
+
+    return;
 }
 
 int main() {
-    XInitThreads();
-
     if (!x11_setup(&x11))
         return 1;
 
@@ -702,29 +697,54 @@ int main() {
 
     draw_bar(&x11);
 
-    pthread_t timer_tid;
-    pthread_create(&timer_tid, NULL, &timer_update, NULL);
+    struct itimerspec delta;
+    uint64_t exp;
+    delta.it_value.tv_sec = 1; // initial timer
+    delta.it_value.tv_nsec = 0;
+    delta.it_interval.tv_sec = 30; // repeat interval
+    delta.it_interval.tv_nsec = 0;    
+    int tfd = timerfd_create(CLOCK_REALTIME, 0);
+    timerfd_settime(tfd, 0, &delta, NULL);
 
+    int maxfd;
+    fd_set readable;
     XEvent ev;
+
+    maxfd = tfd > x11.fd ? tfd : x11.fd;
+
     while(true) {
-      XNextEvent(x11.dpy, &ev);
+        FD_ZERO(&readable);
+        FD_SET(tfd, &readable);
+        FD_SET(x11.fd, &readable);
 
-      // windows on top need continuous drawing
-      draw_hand();
+        select(maxfd + 1, &readable, NULL, NULL, NULL);
 
-      switch(ev.type) {
-        case KeyPress:
-            handleKeyPress(&ev.xkey);
-            break;
-        case ConfigureRequest:
-            handleConfigureRequest(&ev.xconfigurerequest);
-            break;
-        case MapRequest:
-            handleMapRequest(&ev.xmaprequest);
-            break;
-        case DestroyNotify:
-            handleDestroyNotify(&ev.xdestroywindow);
-            break;
-      }
+        if (FD_ISSET(tfd, &readable)) {
+            read(tfd, &exp, sizeof(uint64_t));
+            timer_update();
+            continue;
+        }
+
+        while (XPending(x11.dpy)) {
+            XNextEvent(x11.dpy, &ev);
+
+            // windows on top need continuous drawing
+            draw_hand();
+
+            switch(ev.type) {
+                case KeyPress:
+                    handleKeyPress(&ev.xkey);
+                    break;
+                case ConfigureRequest:
+                    handleConfigureRequest(&ev.xconfigurerequest);
+                    break;
+                case MapRequest:
+                    handleMapRequest(&ev.xmaprequest);
+                    break;
+                case DestroyNotify:
+                    handleDestroyNotify(&ev.xdestroywindow);
+                    break;
+            }
+        }
     }
 }
