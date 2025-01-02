@@ -308,6 +308,7 @@ void
 spawn(const char *cmd)
 {
     if (!fork()) {
+        close(x11.fd);
         system(cmd);
     }
 }
