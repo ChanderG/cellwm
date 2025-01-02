@@ -10,7 +10,14 @@ CFLAGS += -g -std=c99 -Wall -Wextra \
 all: wm
 
 wm: wm.c
-	gcc $(CFLAGS) $(LDLIBS) -o wm wm.c
+	gcc $(CFLAGS) $(LDLIBS) -o cellwm wm.c
+
+install:
+	cp cellwm /usr/local/bin/
+	cp cellwm.desktop /usr/share/xsessions/
+
+uinstall:
+	rm -rf /usr/local/bin/cellwm
 
 clean:
-	rm wm
+	rm cellwm

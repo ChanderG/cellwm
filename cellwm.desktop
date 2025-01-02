@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=cellwm
+Comment=Cell Window manager
+TryExec=cellwm
+Exec=cellwm
+Type=Application
