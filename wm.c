@@ -655,7 +655,8 @@ timer_update()
             timer = ELAPSED;
             timer_elapsed = 0;
         }
-
+    }
+    if (timer == ELAPSED) {
         XftDrawRect(x11.fdraw, &x11.colors[Red], 0, x11.sh/2 - 100,
                     x11.sw, 200);
         // hide window temporarily
