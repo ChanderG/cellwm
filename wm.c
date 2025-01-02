@@ -48,8 +48,10 @@ struct X11
 
 struct X11 x11;
 
-static int ccx = 2;
+static int ccx = 1;
 static int ccy = 1;
+static int pcx = 1;
+static int pcy = 1;
 
 typedef struct Client Client;
 struct Client
@@ -169,7 +171,7 @@ x11_setup(struct X11 *x11)
     // little trick lifted from dwm
     unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
-    KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down,
+    KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down, XK_Tab,
                       XK_k, XK_m, XK_t, XK_f, XK_i, XK_l, XK_u, XK_End};
     KeySym numsyms[] = {XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9};
 
@@ -321,6 +323,10 @@ clip(int n)
 
 void
 update_view(int prevy, int prevx){
+    if (!((prevy == ccy) && (prevx == ccx))) {
+        pcy = prevy;
+        pcx = prevx;
+    }
 
     // unmap the windows show previously
     Cell* prev = &cells[prevy][prevx];
@@ -473,6 +479,11 @@ handleKeyPress(XKeyEvent *ev)
         case XK_Down:
             prevy = ccy; ccy = clip(ccy+1);
             update_view(prevy, ccx); break;
+        case XK_Tab:
+            prevy = ccy; prevx = ccx;
+            ccy = pcy; ccx = pcx;
+            update_view(prevy, prevx);
+            break;
         case XK_k:
             kill_client();
             break;
