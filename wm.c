@@ -170,7 +170,7 @@ x11_setup(struct X11 *x11)
     unsigned int modifiers[] = { 0, LockMask, Mod2Mask, Mod2Mask|LockMask };
 
     KeySym syms[] = { XK_Return, XK_p, XK_Left, XK_Right, XK_Up, XK_Down,
-                      XK_k, XK_m, XK_t, XK_f, XK_i, XK_l, XK_u};
+                      XK_k, XK_m, XK_t, XK_f, XK_i, XK_l, XK_u, XK_End};
     KeySym numsyms[] = {XK_1, XK_2, XK_3, XK_4, XK_5, XK_6, XK_7, XK_8, XK_9};
 
     for (unsigned int j = 0; j < LENGTH(modifiers); j++) {
@@ -513,6 +513,9 @@ handleKeyPress(XKeyEvent *ev)
             break;
         case XK_u:
             pickup_hand();
+            break;
+        case XK_End:
+            exit(0);
             break;
     }
 }
