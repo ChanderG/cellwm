@@ -400,6 +400,9 @@ kill_client(){
 void
 place_hand()
 {
+    if (hand == NULL)
+        return;
+
     Cell *c = &cells[ccy][ccx];
     if (c->primary == NULL) {
         c->primary = hand;
