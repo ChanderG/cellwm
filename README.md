@@ -4,6 +4,8 @@ CellWM is a X11 Tiling Window Manager, highly specialized for my own requirement
 
 **Warning: cellwm is in early stages of its life and will continue to evolve over time. Pun intended.**
 
+![Initial view](./imgs/01_open.png)
+
 ## What?
 
 I am a big fan of [Tiling Window Managers](https://en.wikipedia.org/wiki/Tiling_window_manager) and have been using a [personalized version](https://github.com/ChanderG/my-dwm) of dwm for about 10 years as my primary driver.
@@ -34,11 +36,15 @@ The equivalent of Workspaces in CellWM is, you guessed it, "Cells". There are 81
 
 Before you get concerned about navigation, at any time, a single row of cells is activated. The usual `Alt+num` format works to navigate between the cells of the current row. You can move between rows of cells, but this done one row at a time, with no direct keybindings to jump to the jth row.
 
+![Cells](./imgs/02_normal.gif)
+
 ### Inside a Cell
 
 At any time, one cell of the grid is active and visible. Inside this cell, you have two slots: called primary and secondary.
 
 Every window is assigned to a single slot in a single cell. This means that each cell can hold only two windows. This gives us a max of `2 * 9*9`, that is 162 windows. If I ever reach this limit, we will see what to do, then.
+
+![Modes](./imgs/03_modes.gif)
 
 A cell can be in one of two modes: Monocle (M) or Tiling (=). In Monocle mode, the primary window is displayed taking up the entire viewport (excepting the top bar). In Tiling mode, the two windows are displayed side-by-side taking equal halves of the screen. Modes of each cell are independent.
 
@@ -46,11 +52,15 @@ When you open windows in an empty cell, they get assigned to the first available
 
 Apart from switching modes, the only other operation provided is "Flip" which allows you to swap the windows between the two slots of the cell.
 
+![Both](./imgs/04_both.gif)
+
 ### The Hand
 
 What happens if you open a third window when both the slots of the current cell are occupied? The new window is not placed in, but kept in your hand, to borrow terms from card games.
 
 This is represented by a card-like window on your screen. The hand remains in place as you navigate the cell grid. When you find your desired location, you can place the card into the cell with a keybinding, locking it into your place.
+
+![Hand](./imgs/05_hand.gif)
 
 Today, there is a single slot in your hand. You can also pick up windows from anywhere into your hand if it is free. This is the only way today to move windows between cells.
  
