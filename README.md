@@ -62,7 +62,9 @@ This is represented by a card-like window on your screen. The hand remains in pl
 
 ![Hand](./imgs/05_hand.gif)
 
-Today, there is a single slot in your hand. You can also pick up windows from anywhere into your hand if it is free. This is the only way today to move windows between cells.
+The hand can fit any number of windows (arranged in a stack), though only the top most window's name is shown on the card with a "(more)" indicator if there are more windows in the hand. You can only operate on the top of the stack, as you might expect.
+
+You can also pick up primary windows from any cell into your hand. This is the only way today to move windows between cells.
  
 ## Installation
 

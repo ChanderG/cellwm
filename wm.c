@@ -64,7 +64,14 @@ struct Client
 };
 
 Client* clients;
-Client* hand;
+
+typedef struct Hand Hand;
+struct Hand
+{
+    Client *cl;
+    Hand* next;
+};
+Hand* hand;
 
 typedef struct Cell Cell;
 struct Cell
@@ -223,9 +230,15 @@ x11_setup(struct X11 *x11)
 void
 draw_hand()
 {
-    if (hand != NULL)
+    if (hand == NULL)
+      return;
+
+    XftDrawString8(x11.hdraw, &x11.colors[Black], x11.font,
+                    30, 30, (XftChar8 *)&hand->cl->title, 10);
+    // TODO: make this into a clearer sign, like borders/colors
+    if (hand->next != NULL)
         XftDrawString8(x11.hdraw, &x11.colors[Black], x11.font,
-                        30, 30, (XftChar8 *)&hand->title, 10);
+                        30, 60, "(more)", 20);
 }
 
 void
@@ -336,6 +349,7 @@ update_view(int prevy, int prevx){
         XUnmapWindow(x11.dpy, prev->secondary->win);
 
     // map the current cell's window(s) here
+    // TODO: update title here
     Cell* curr = &cells[ccy][ccx];
     if (curr->layout == Tiled) {
         if (curr->primary != NULL)
@@ -405,20 +419,23 @@ place_hand()
 
     Cell *c = &cells[ccy][ccx];
     if (c->primary == NULL) {
-        c->primary = hand;
+        c->primary = hand->cl;
     } else if (c->secondary == NULL) {
-        c->secondary = hand;
+        c->secondary = hand->cl;
     } else {
         // nothing we can do from here
         return;
     }
 
     // place it in
-    hand->cx = ccx;
-    hand->cy = ccy;
+    hand->cl->cx = ccx;
+    hand->cl->cy = ccy;
 
-    // free up the emtpy hand
-    hand = NULL;
+    // free up the hand
+    Hand* curr = hand;
+    hand = hand->next;
+    free(curr);
+
     update_hand();
     update_cell_layout();
 }
@@ -430,17 +447,18 @@ pickup_hand()
     // nothing to pick up
     if (c->primary == NULL)
         return;
-    // hand is not empty
-    if (hand != NULL)
-        return;
 
-    hand = c->primary;
-    hand->cx = hand->cy = -1;
+    // Push a new entry into hand
+    Hand* curr = (Hand*)malloc(sizeof(Hand));
+    curr->cl = c->primary;
+    curr->cl->cx = curr->cl->cy = -1;
+    curr->next = hand;
+    hand = curr;
 
     // need to manually unmap this window
     // TODO: make this cleaner
     c->primary = NULL;
-    XUnmapWindow(x11.dpy, hand->win);
+    XUnmapWindow(x11.dpy, hand->cl->win);
 
     update_hand();
     update_cell_layout();
@@ -590,8 +608,11 @@ handleMapRequest(XMapRequestEvent *ev)
             c->cy = -1;
 
             // put it in hand
-            // TODO: check if hand is free
-            hand = c;
+            Hand* new_entry = (Hand*)malloc(sizeof(Hand));
+            new_entry->cl = c;
+            new_entry->next = hand;
+            hand = new_entry;
+
             update_hand();
         }
     }
