@@ -400,8 +400,16 @@ kill_client(){
     // TODO: lookup the focused client in a better way than this
     // cannot kill secondary window with this logic
     if (curr->primary != NULL) {
-        // TODO: send a clean WM_DELETE_WINDOW event
-        XKillClient(x11.dpy, curr->primary->win);
+        // this is the proper way to close a window
+        // I used XKillClient earlier, but that kills all windows of the target
+	XEvent ev;
+        ev.type = ClientMessage;
+        ev.xclient.window = curr->primary->win;
+        ev.xclient.message_type = XInternAtom(x11.dpy, "WM_PROTOCOLS", False);
+        ev.xclient.format = 32;
+        ev.xclient.data.l[0] = XInternAtom(x11.dpy, "WM_DELETE_WINDOW", False);
+        ev.xclient.data.l[1] = CurrentTime;
+        XSendEvent(x11.dpy, curr->primary->win, False, NoEventMask, &ev);
 
         // remove this from the list of clients
         delete_client(curr->primary);
